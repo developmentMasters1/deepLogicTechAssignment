@@ -1,10 +1,9 @@
-const {parse } = require('node-html-parser');
+
 const  https = require('https'); 
 
 const baseUrl = 'https://time.com'; 
 
 
-// Function to fetch HTML content from Time.com
 async function fetchHTML() {
     return new Promise((resolve, reject) => {
         https.get(baseUrl, (response) => {
@@ -21,57 +20,59 @@ async function fetchHTML() {
     });
 }
 
+// get link data for each  story
+function linkData(links) {
+    let finalArray = [];
+    links.forEach((element) => {
+      let f = element.replace('href="', "");
+      let s = f.replace('">', "");
+      s =  baseUrl + s;
+      finalArray.push(s);
+    });
+    return finalArray;
+  }
+  
+// get title data for each story
+  function storiesData(stories) {
+    let finalArray = [];
+    stories.forEach((element) => {
+      let f = element.replace('line">', "");
+      let s = f.replace("</h3>", "");
+      let t = s.replace(/<(.*?)>/g, "");
+      finalArray.push(t);
+    });
+    return finalArray;
+  }
+  
 
-
-
-
-
-// // Function to extract latest stories using regular expressions
-// function extractLatestStories(html) {
-//     const regex = /<a href="([^"]+)">([^<]+)<\/a>/g;
-//     const latestStories = [];
-//     const ulRegex = /<ul class="latest-stories__list">([\s\S]*?)<\/ul>/;
-//     const ulMatch = ulRegex.exec(html);
-
-//     if (ulMatch) {
-//         const ulContent = ulMatch[1];
-//         let match;
-
-//         while ((match = regex.exec(ulContent)) !== null && latestStories.length < 6) {
-//             const link = match[1];
-//             const title = match[2].trim();
-//             latestStories.push({ title, link });
-//         }
-//     }
-
-//     return latestStories;
-// }
-
-
-function extractLatestStories(html) {   
-    // console.log(html) ;  
-    const root = parse(html);
-    const storyElements = root.querySelectorAll('.latest-stories__item');
-    const latestStories = [];
-
-    for (const element of storyElements) {
-        const titleElement = element.querySelector('h3');
-        const linkElement = element.querySelector('a');
-
-        if (titleElement && linkElement) {
-            const title = titleElement.text.trim();
-            const link = baseUrl + linkElement.getAttribute('href');
-
-            latestStories.push({ title, link });
-        }
-
-        if (latestStories.length >= 6) {
-            break; // Break loop once 6 stories are collected
-        }
+function extractLatestStories(html) {
+    let processData = html.replace(/\n/g, "");
+    processData = processData.replace(/[t ]+\</g, "<");
+    processData = processData.replace(/\>[\t ]+\</g, "><");
+    processData = processData.replace(/\>[\t ]+$/g, ">");
+  
+    let processDataobj = processData.match(/Latest Stories(.*?)<\/ul>/);
+  
+    processData = processDataobj[0];
+    let links = processData.match(/href="(.*?)>/g);
+    let stories = processData.match(/line">(.*?)h3>/g);
+  
+    const processedLink = linkData(links);
+    const processTitle = storiesData(stories);
+  
+    let finalStoriesArray = [];
+  
+    for (i = 0; i < 6; i++) {
+      let storyObject = {};
+      storyObject["title"] = processTitle[i];
+      storyObject["link"] = processedLink[i];
+  
+      finalStoriesArray.push(storyObject);
     }
+    return finalStoriesArray;
 
-    return latestStories;
 }
+
 
 
 module.exports = {fetchHTML, extractLatestStories} ; 
